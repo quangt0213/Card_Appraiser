@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 940 560" font-family="Segoe UI, Arial, sans-serif">
+  <rect x="0" y="0" width="940" height="560" fill="#ffffff"/>
+  <text x="470" y="34" text-anchor="middle" font-size="22" font-weight="700" fill="#12203a">Card Scanner — single-cable power (one 5 V supply, shared rail)</text>
+  <text x="470" y="56" text-anchor="middle" font-size="13" fill="#5b6472">Red = 5 V · Black = GND · Blue dashed = Wi-Fi (data) · one cable leaves the enclosure</text>
+
+  <!-- enclosure -->
+  <rect x="30" y="80" width="880" height="440" rx="14" fill="none" stroke="#c3ccd8" stroke-width="2" stroke-dasharray="8 6"/>
+  <text x="46" y="102" font-size="12" fill="#9aa4b2">enclosure</text>
+
+  <!-- PSU -->
+  <rect x="56" y="150" width="150" height="80" rx="8" fill="#eef3fb" stroke="#3763b6" stroke-width="2"/>
+  <text x="131" y="182" text-anchor="middle" font-size="14" font-weight="700" fill="#12203a">5 V / 4–5 A</text>
+  <text x="131" y="202" text-anchor="middle" font-size="12" fill="#5b6472">USB-C supply</text>
+  <text x="131" y="138" text-anchor="middle" font-size="11" fill="#9aa4b2">↑ the one external cable</text>
+
+  <!-- Raspberry Pi -->
+  <rect x="300" y="120" width="220" height="150" rx="10" fill="#f6f8fc" stroke="#12203a" stroke-width="2"/>
+  <text x="410" y="150" text-anchor="middle" font-size="16" font-weight="700" fill="#12203a">Raspberry Pi 4</text>
+  <text x="410" y="170" text-anchor="middle" font-size="11" fill="#5b6472">powered via USB-C</text>
+  <!-- pins -->
+  <circle cx="318" cy="210" r="5" fill="#d33f3f"/><text x="330" y="214" font-size="11" fill="#12203a">Pin 2 · 5V</text>
+  <circle cx="318" cy="238" r="5" fill="#222"/><text x="330" y="242" font-size="11" fill="#12203a">Pin 6 · GND</text>
+  <text x="410" y="238" text-anchor="middle" font-size="11" fill="#5b6472">micro-HDMI →</text>
+
+  <!-- 5V rail node -->
+  <rect x="600" y="150" width="120" height="80" rx="8" fill="#fff6ec" stroke="#c98a2a" stroke-width="2"/>
+  <text x="660" y="182" text-anchor="middle" font-size="13" font-weight="700" fill="#7a4d10">5 V rail</text>
+  <text x="660" y="200" text-anchor="middle" font-size="11" fill="#7a4d10">(terminal node)</text>
+  <text x="660" y="140" text-anchor="middle" font-size="11" fill="#9aa4b2">+ 4 A polyfuse (product)</text>
+
+  <!-- ESP32-CAM -->
+  <rect x="740" y="300" width="150" height="110" rx="10" fill="#f6f8fc" stroke="#12203a" stroke-width="2"/>
+  <text x="815" y="328" text-anchor="middle" font-size="15" font-weight="700" fill="#12203a">ESP32-CAM</text>
+  <circle cx="756" cy="356" r="5" fill="#d33f3f"/><text x="766" y="360" font-size="11" fill="#12203a">5V</text>
+  <circle cx="756" cy="384" r="5" fill="#222"/><text x="766" y="388" font-size="11" fill="#12203a">GND</text>
+  <text x="815" y="404" text-anchor="middle" font-size="10" fill="#5b6472">OV2640 camera</text>
+
+  <!-- capacitor -->
+  <rect x="640" y="330" width="70" height="52" rx="6" fill="#eafaf0" stroke="#2e9e5b" stroke-width="2"/>
+  <text x="675" y="352" text-anchor="middle" font-size="11" font-weight="700" fill="#1c6b3d">1000 µF</text>
+  <text x="675" y="368" text-anchor="middle" font-size="10" fill="#1c6b3d">bulk cap</text>
+
+  <!-- touchscreen -->
+  <rect x="300" y="330" width="170" height="90" rx="8" fill="#f6f8fc" stroke="#12203a" stroke-width="2"/>
+  <text x="385" y="360" text-anchor="middle" font-size="14" font-weight="700" fill="#12203a">Touchscreen</text>
+  <text x="385" y="380" text-anchor="middle" font-size="11" fill="#5b6472">/display kiosk</text>
+
+  <!-- LED light -->
+  <rect x="56" y="330" width="150" height="70" rx="8" fill="#fffbe8" stroke="#c9b02a" stroke-width="2"/>
+  <text x="131" y="360" text-anchor="middle" font-size="13" font-weight="700" fill="#7a6a10">Diffused LED</text>
+  <text x="131" y="378" text-anchor="middle" font-size="10" fill="#7a6a10">even fill light (5 V)</text>
+
+  <!-- button -->
+  <rect x="740" y="450" width="150" height="50" rx="8" fill="#f6f8fc" stroke="#12203a" stroke-width="1.5"/>
+  <text x="815" y="472" text-anchor="middle" font-size="12" font-weight="700" fill="#12203a">Push button</text>
+  <text x="815" y="488" text-anchor="middle" font-size="10" fill="#5b6472">GPIO13 ↔ GND (trigger)</text>
+
+  <!-- WIRES -->
+  <!-- PSU -> Pi (USB-C, single line) -->
+  <line x1="206" y1="190" x2="300" y2="190" stroke="#3763b6" stroke-width="4"/>
+  <text x="253" y="182" text-anchor="middle" font-size="10" fill="#3763b6">USB-C</text>
+
+  <!-- Pi 5V -> rail (red) -->
+  <path d="M323 210 H560 Q580 210 590 190 H600" fill="none" stroke="#d33f3f" stroke-width="3"/>
+  <!-- Pi GND -> rail (black) -->
+  <path d="M323 238 H556 Q586 238 596 216 H600" fill="none" stroke="#222" stroke-width="3"/>
+
+  <!-- rail -> ESP32 5V (red) -->
+  <path d="M690 230 V300 Q690 330 730 340 H756 L756 356" fill="none" stroke="#d33f3f" stroke-width="3"/>
+  <!-- rail -> ESP32 GND (black) -->
+  <path d="M712 230 V296 Q712 372 744 384 H756" fill="none" stroke="#222" stroke-width="3"/>
+
+  <!-- cap across ESP32 5V/GND -->
+  <line x1="710" y1="345" x2="756" y2="356" stroke="#2e9e5b" stroke-width="2.5"/>
+  <line x1="710" y1="372" x2="756" y2="384" stroke="#2e9e5b" stroke-width="2.5"/>
+
+  <!-- rail -> LED (red) and LED GND back -->
+  <path d="M600 200 H240 Q210 200 200 250 V330" fill="none" stroke="#d33f3f" stroke-width="2.5"/>
+
+  <!-- rail -> touchscreen power (optional, red thin) -->
+  <path d="M600 214 H520 Q470 214 430 300 V330" fill="none" stroke="#d33f3f" stroke-width="2" stroke-dasharray="5 4"/>
+  <text x="470" y="300" font-size="9" fill="#d33f3f">5 V (if screen takes it)</text>
+
+  <!-- Pi -> touchscreen HDMI -->
+  <path d="M360 270 V330" fill="none" stroke="#7a4d10" stroke-width="2.5"/>
+  <text x="366" y="300" font-size="10" fill="#7a4d10">micro-HDMI</text>
+
+  <!-- button -> ESP32 -->
+  <line x1="815" y1="450" x2="815" y2="410" stroke="#222" stroke-width="2"/>
+
+  <!-- WiFi ESP32 -> Pi (blue dashed) -->
+  <path d="M740 320 Q560 300 520 200" fill="none" stroke="#2f7fd6" stroke-width="2.5" stroke-dasharray="7 6"/>
+  <text x="590" y="270" font-size="11" fill="#2f7fd6" font-weight="700">Wi-Fi: POST /scan (JPEG)</text>
+
+  <!-- legend -->
+  <rect x="56" y="440" width="270" height="66" rx="8" fill="#fbfcfe" stroke="#d6dde7"/>
+  <line x1="70" y1="458" x2="96" y2="458" stroke="#d33f3f" stroke-width="3"/><text x="104" y="462" font-size="11" fill="#12203a">5 V</text>
+  <line x1="70" y1="476" x2="96" y2="476" stroke="#222" stroke-width="3"/><text x="104" y="480" font-size="11" fill="#12203a">GND (common)</text>
+  <line x1="170" y1="458" x2="196" y2="458" stroke="#2f7fd6" stroke-width="3" stroke-dasharray="6 5"/><text x="204" y="462" font-size="11" fill="#12203a">Wi-Fi data</text>
+  <line x1="170" y1="476" x2="196" y2="476" stroke="#2e9e5b" stroke-width="3"/><text x="204" y="480" font-size="11" fill="#12203a">bulk cap</text>
+</svg>

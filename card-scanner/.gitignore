@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+
+# Env / secrets
+.env
+
+# Runtime data (rebuildable) -- keep the dirs, ignore contents
+carddata.db
+carddata.db-wal
+carddata.db-shm
+data/scans/*
+data/cache/**
+data/descriptors/*
+logs/*
+!**/.gitkeep
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+.pytest_cache/

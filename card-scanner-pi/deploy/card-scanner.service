@@ -1,0 +1,27 @@
+# systemd unit for the Card Scanner backend.
+# Install:
+#   sudo cp deploy/card-scanner.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now card-scanner
+# Edit User= and the paths below if your app lives somewhere other than /home/pi/card-scanner.
+
+[Unit]
+Description=Card Scanner backend (Flask + edge CV)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/card-scanner
+ExecStart=/home/pi/card-scanner/.venv/bin/python /home/pi/card-scanner/app.py
+Restart=on-failure
+RestartSec=5
+# Give the first EasyOCR model load + catalog sync room to start
+TimeoutStartSec=120
+# Keep logs in the journal (view with: journalctl -u card-scanner -f)
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

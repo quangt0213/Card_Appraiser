@@ -1,0 +1,447 @@
+{#- ============================================================
+    display.html — trading-card scanner kiosk screen (Pi 4, 1024x600)
+    Renders one Jinja2 variable: state (dict). Fully offline.
+    ============================================================ -#}
+{%- set price_basis = state.get('price_basis') or '' -%}
+{%- set is_market = 'market' in price_basis.lower() -%}
+{%- set game_names = {'onepiece':'One Piece','one piece':'One Piece','pokemon':'Pokémon','pokémon':'Pokémon'} -%}
+{%- set game_label = game_names.get((state.get('game') or '')|lower, (state.get('game') or 'Card Appraiser')) -%}
+{#- Product behavior: only a confident match shows a result screen.
+    Everything else (no match, low confidence, waiting) shows idle. -#}
+{%- if state.get('matched') -%}
+  {%- set view = 'match' -%}
+{%- else -%}
+  {%- set view = 'idle' -%}
+{%- endif -%}
+{%- set cur = state.get('currency') or 'USD' -%}
+{%- set sym = {'USD':'$','EUR':'€','GBP':'£','JPY':'¥','CAD':'$','AUD':'$'}.get(cur, cur ~ ' ') -%}
+{%- set conf_pct = ((state.get('confidence') or 0) * 100) | round | int -%}
+{%- set src = state.get('source') or 'none' -%}
+<!DOCTYPE html>
+<html lang="en"
+      data-sig="{{ view }}{% if view == 'match' %}|{{ state.get('updated_at','') | e }}|{{ state.get('card_name','') | e }}|{{ state.get('price','') }}{% endif %}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Scanner</title>
+<noscript><meta http-equiv="refresh" content="3"></noscript>
+<style>
+  /* ---------- base ---------- */
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; height:100%; overflow:hidden; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color:#f4ead2;
+    background:
+      radial-gradient(120% 90% at 50% -20%, rgba(64,110,160,.28), rgba(0,0,0,0) 60%),
+      linear-gradient(180deg, #0c1731 0%, #0d2038 38%, #0b3145 68%, #04101a 100%);
+    -webkit-user-select:none; user-select:none;
+    cursor:none;
+  }
+  .stage {
+    position:relative; width:100%; height:100%;
+    display:flex; flex-direction:column;
+    padding: clamp(14px, 2.5vh, 26px) clamp(18px, 3vw, 40px);
+  }
+  /* faint parchment grain — cheap layered gradients, no images */
+  .stage::before {
+    content:""; position:absolute; inset:0; pointer-events:none; opacity:.5;
+    background:
+      repeating-linear-gradient(115deg, rgba(242,193,78,.012) 0 3px, rgba(0,0,0,0) 3px 9px),
+      repeating-linear-gradient(23deg,  rgba(255,255,255,.010) 0 2px, rgba(0,0,0,0) 2px 7px),
+      radial-gradient(75% 60% at 50% 45%, rgba(0,0,0,0) 55%, rgba(0,0,0,.38) 100%);
+  }
+  .stage > * { position:relative; z-index:1; }
+
+  /* ---------- chrome (top / bottom bars) ---------- */
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between;
+    font-size: clamp(12px, 1.6vw, 17px);
+    letter-spacing:.22em; text-transform:uppercase;
+    color:#b7a878; font-weight:700;
+  }
+  .brand { display:flex; align-items:center; gap:.7em; }
+  .brand svg { width:1.6em; height:1.6em; }
+  .stamp {
+    font-size:.85em; color:#7d8fa5; letter-spacing:.14em; font-weight:600;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------- shared bits ---------- */
+  main { flex:1; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:0; }
+  .rule {
+    width:min(46vw, 460px); height:2px; margin:.6em auto;
+    background:linear-gradient(90deg, rgba(242,193,78,0), #f2c14e 20%, #f2c14e 80%, rgba(242,193,78,0));
+    opacity:.55;
+  }
+  .badges { display:flex; gap:12px; justify-content:center; flex-wrap:wrap; }
+  .badge {
+    display:inline-flex; align-items:center; gap:.5em;
+    padding:.42em 1em; border-radius:999px;
+    border:1px solid rgba(242,193,78,.4);
+    background:rgba(242,193,78,.08);
+    font-size:clamp(12px, 1.7vw, 18px); font-weight:700;
+    letter-spacing:.1em; text-transform:uppercase; color:#f2c14e;
+  }
+  .badge .dot { width:.55em; height:.55em; border-radius:50%; background:#f2c14e; }
+  .badge.good  .dot { background:#5fd08a; }
+  .badge.warn  .dot { background:#e0a23f; }
+  .badge.low   .dot { background:#e04a3f; }
+  .badge.muted { color:#9fb0c4; border-color:rgba(159,176,196,.35); background:rgba(159,176,196,.07); }
+  .badge.muted .dot { background:#9fb0c4; }
+
+  /* ---------- MATCH ---------- */
+  .identity { text-align:center; }
+  .cardname {
+    font-size: clamp(28px, 4.4vw, 48px);
+    font-weight:800; letter-spacing:.02em; line-height:1.08;
+    text-shadow: 0 2px 12px rgba(0,0,0,.55);
+    max-width: 92vw; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+  }
+  .cardmeta {
+    margin-top:.35em; font-size: clamp(15px, 2.2vw, 24px);
+    color:#c9b98d; letter-spacing:.14em; text-transform:uppercase; font-weight:600;
+  }
+  .cardmeta .num { color:#8fa3ba; }
+
+  .poster {
+    margin: clamp(6px,1.2vh,14px) 0;
+    padding: clamp(8px,1.8vh,18px) clamp(34px,6vw,72px);
+    border:2px solid rgba(242,193,78,.55);
+    outline:1px solid rgba(242,193,78,.2);
+    outline-offset:5px;
+    border-radius:6px; position:relative; text-align:center;
+    background:
+      radial-gradient(85% 120% at 50% 0%, rgba(242,193,78,.06), rgba(0,0,0,0) 70%),
+      rgba(4,10,18,.35);
+    max-width:94vw;
+  }
+  .poster::before, .poster::after {
+    content:"✕ ✕"; position:absolute; left:0; right:0;
+    color:rgba(242,193,78,.5); font-size:clamp(10px,1.3vw,14px);
+    letter-spacing:0; display:flex; justify-content:space-between; padding:0 .8em;
+  }
+  .poster::before { top:.35em; } .poster::after { bottom:.35em; }
+  .valuelabel {
+    font-size:clamp(13px, 1.8vw, 19px); letter-spacing:.34em; text-transform:uppercase;
+    color:#b7a878; font-weight:700;
+  }
+  .pricebox { overflow:hidden; max-width:88vw; }
+  .price {
+    font-weight:800; line-height:1.02; white-space:nowrap;
+    font-size: clamp(72px, 12vw, 150px);
+    font-variant-numeric: tabular-nums;
+    background:linear-gradient(180deg, #ffe9ad 0%, #f2c14e 55%, #c98f2b 100%);
+    -webkit-background-clip:text; background-clip:text;
+    -webkit-text-fill-color:transparent; color:#f2c14e;
+    filter: drop-shadow(0 4px 14px rgba(0,0,0,.5));
+  }
+  .price .cur { font-size:.52em; vertical-align:.5em; margin-right:.06em; }
+  .price.nil { -webkit-text-fill-color:#54657c; color:#54657c; background:none; }
+  .basis {
+    margin-top:.25em; display:inline-flex; align-items:center; gap:.8em;
+    font-size:clamp(12px, 1.7vw, 18px); letter-spacing:.16em; text-transform:uppercase;
+    font-weight:700; color:#8fa3ba;
+  }
+  .basis .tag {
+    padding:.25em .8em; border-radius:4px; letter-spacing:.16em;
+  }
+  .basis .tag.sales    { color:#5fd08a; border:1px solid rgba(95,208,138,.45); }
+  .basis .tag.fallback { color:#e0a23f; border:1px solid rgba(224,162,63,.5); }
+
+  .sales {
+    display:flex; gap:clamp(8px,1.2vw,14px); justify-content:center;
+    width:100%; overflow:hidden; padding-top:clamp(6px,1.4vh,14px);
+  }
+  .saleslabel {
+    align-self:center; font-size:clamp(11px,1.4vw,14px); color:#7d8fa5;
+    letter-spacing:.2em; text-transform:uppercase; font-weight:700; white-space:nowrap;
+  }
+  .sale {
+    display:flex; align-items:baseline; gap:.6em; white-space:nowrap;
+    padding:.5em 1em; border-radius:8px;
+    background:rgba(13,32,56,.65); border:1px solid rgba(143,163,186,.22);
+    font-size:clamp(13px,1.8vw,19px);
+  }
+  .sale b { color:#f2c14e; font-weight:800; font-variant-numeric:tabular-nums; }
+  .sale span { color:#8fa3ba; font-size:.85em; }
+
+  /* ---------- IDLE ---------- */
+  .idlewrap { text-align:center; }
+  .scanzone {
+    position:relative; width:clamp(120px, 16vw, 170px); aspect-ratio: 63 / 88;
+    margin:0 auto clamp(10px,2.5vh,24px);
+    border:2px dashed rgba(242,193,78,.55); border-radius:10px;
+    display:flex; align-items:center; justify-content:center;
+  }
+  .scanzone svg { width:58%; height:auto; opacity:.9; }
+  .ring, .ring2 {
+    position:absolute; inset:-14px; border:2px solid rgba(242,193,78,.5);
+    border-radius:16px; animation:pulse 3s ease-out infinite;
+  }
+  .ring2 { animation-delay:1.5s; }
+  @keyframes pulse {
+    0%   { transform:scale(.92); opacity:.7; }
+    70%  { transform:scale(1.18); opacity:0; }
+    100% { transform:scale(1.18); opacity:0; }
+  }
+  .idletitle {
+    font-size:clamp(34px, 5.6vw, 62px); font-weight:800; letter-spacing:.03em;
+    text-shadow:0 2px 14px rgba(0,0,0,.6);
+  }
+  .idlesub {
+    margin-top:.5em; font-size:clamp(15px, 2.2vw, 22px); color:#9fb0c4;
+    letter-spacing:.18em; text-transform:uppercase; font-weight:600;
+  }
+  .compass { animation:bob 5s ease-in-out infinite; transform-origin:50% 50%; }
+  @keyframes bob { 0%,100%{ transform:translateY(0) rotate(-4deg);} 50%{ transform:translateY(-6px) rotate(4deg);} }
+  .needle { transform-origin:50px 50px; animation:seek 9s ease-in-out infinite; }
+  @keyframes seek {
+    0%,100% { transform:rotate(-18deg); } 30% { transform:rotate(14deg); }
+    55% { transform:rotate(-8deg); } 80% { transform:rotate(20deg); }
+  }
+
+  /* waves — transform-only animation, GPU friendly */
+  .sea { position:absolute; left:0; right:0; bottom:0; height:clamp(60px,12vh,96px); overflow:hidden; pointer-events:none; z-index:0; }
+  .wave { position:absolute; bottom:0; left:0; width:200%; height:100%; will-change:transform; }
+  .wave svg { width:100%; height:100%; display:block; }
+  .w1 { animation:drift 14s linear infinite; opacity:.5; }
+  .w2 { animation:drift 23s linear infinite reverse; opacity:.3; bottom:8px; }
+  @keyframes drift { from{ transform:translateX(0);} to{ transform:translateX(-50%);} }
+
+  /* ---------- LOW CONF / NO MATCH ---------- */
+  .alt { text-align:center; max-width:88vw; }
+  .alt .icon { width:clamp(64px,9vw,96px); height:auto; margin-bottom:clamp(8px,2vh,18px); }
+  .alttitle { font-size:clamp(32px,5vw,56px); font-weight:800; }
+  .alttitle.warn { color:#e0a23f; }
+  .alttitle.err  { color:#e05a4f; }
+  .guess {
+    margin:.5em 0; font-size:clamp(22px,3.4vw,38px); font-weight:700; color:#f4ead2;
+    white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:88vw;
+  }
+  .altsub {
+    margin-top:.4em; font-size:clamp(15px,2.2vw,22px); color:#9fb0c4;
+    letter-spacing:.14em; text-transform:uppercase; font-weight:600;
+  }
+  .altreason { margin-top:.8em; font-size:clamp(13px,1.8vw,17px); color:#7d8fa5; font-style:italic; }
+  .rescanhint {
+    margin-top:clamp(12px,2.6vh,24px); display:inline-block;
+    padding:.6em 1.6em; border-radius:999px;
+    border:2px solid rgba(242,193,78,.6); color:#f2c14e;
+    font-size:clamp(15px,2.2vw,21px); font-weight:800;
+    letter-spacing:.18em; text-transform:uppercase;
+  }
+
+  /* ---------- "Scan next card" touch button (match view) ---------- */
+  .nextbtn {
+    margin-top:clamp(10px,2.4vh,22px);
+    padding:.7em 2.4em; border-radius:999px;
+    border:2px solid rgba(242,193,78,.75); background:rgba(242,193,78,.10);
+    color:#f2c14e; font-family:inherit;
+    font-size:clamp(16px,2.4vw,23px); font-weight:800;
+    letter-spacing:.16em; text-transform:uppercase; cursor:pointer;
+    -webkit-tap-highlight-color:transparent;
+  }
+  .nextbtn:active { background:rgba(242,193,78,.24); transform:scale(.98); }
+
+  /* ---------- compact height (e.g. 1024x600 landscape) ---------- */
+  @media (max-height:620px) {
+    .poster { margin:6px 0; padding:8px clamp(28px,5vw,60px); outline-offset:4px; }
+    .price  { font-size: clamp(60px, 10.5vw, 118px); }
+    .cardname { font-size: clamp(24px, 3.8vw, 40px); }
+    .sale:nth-child(n+4) { display:none; }
+    .sea { height:46px; }
+  }
+
+  /* ---------- small screens (800x480) ---------- */
+  @media (max-width:820px), (max-height:500px) {
+    .stage { padding:10px 16px; }
+    .poster { outline:none; padding:8px 26px; }
+    .price  { font-size: clamp(52px, 10vw, 96px); }
+    .sale:nth-child(n+3) { display:none; }
+    .sea { height:40px; }
+    .altreason { display:none; }
+  }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#f2c14e" stroke-width="6"/>
+        <path d="M50 14 L58 50 L50 86 L42 50 Z" fill="#f2c14e"/>
+        <path d="M14 50 L50 42 L86 50 L50 58 Z" fill="#c73e3e"/>
+        <circle cx="50" cy="50" r="7" fill="#0c1731" stroke="#f2c14e" stroke-width="4"/>
+      </svg>
+      <span>{{ game_label }}</span>
+    </div>
+    <div class="stamp">{{ (state.get('updated_at') or '')[:16] | replace('T',' ') }}</div>
+  </div>
+
+{% if view == 'match' %}
+  <main>
+    <div class="identity">
+      <div class="cardname">{{ state.get('card_name') or 'Unknown Card' }}</div>
+      <div class="cardmeta">
+        {{ state.get('set_name') or '' }}
+        {%- if state.get('collector_number') %} · <span class="num">#{{ state.get('collector_number') }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="poster">
+      <div class="valuelabel">Appraised Value</div>
+      <div class="pricebox">
+        {% if state.get('price') is not none %}
+        <div class="price" id="price"><span class="cur">{{ sym }}</span>{{ '{:,.2f}'.format(state.get('price')) }}</div>
+        {% else %}
+        <div class="price nil" id="price">—</div>
+        {% endif %}
+      </div>
+      <div class="basis">
+        {% if is_market %}
+        <span class="tag fallback">Market price · estimate</span>
+        {% else %}
+        <span class="tag sales">Recent sales</span>
+        {% endif %}
+        {% if state.get('price_as_of') %}<span>as of {{ state.get('price_as_of') }}</span>{% endif %}
+      </div>
+    </div>
+
+    <div class="badges">
+      <span class="badge {{ 'good' if conf_pct >= 90 else ('warn' if conf_pct >= 70 else 'low') }}">
+        <span class="dot"></span>{{ conf_pct }}% match
+      </span>
+      {% if src == 'local_db' %}
+      <span class="badge muted"><span class="dot"></span>Recognized locally</span>
+      {% elif src == 'remote_api' %}
+      <span class="badge muted"><span class="dot"></span>Fresh lookup</span>
+      {% endif %}
+    </div>
+
+    {% set sales = state.get('recent_sales') or [] %}
+    {% if sales and not is_market %}
+    <div class="sales">
+      <span class="saleslabel">Last sold</span>
+      {% for s in sales[:4] %}
+      <span class="sale">
+        <b>{% if s.get('price') is not none %}{{ sym }}{{ '{:,.2f}'.format(s.get('price')) }}{% else %}—{% endif %}</b>
+        <span>{{ (s.get('date') or '')[:10] }}</span>
+        {% if s.get('condition') %}<span>· {{ s.get('condition') }}</span>{% endif %}
+        {% if s.get('variant') %}<span>· {{ s.get('variant') }}</span>{% endif %}
+      </span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <button class="nextbtn" onclick="scanNext()">Scan next card</button>
+  </main>
+
+{% elif view == 'lowconf' %}
+  <main>
+    <div class="alt">
+      <svg class="icon" viewBox="0 0 100 100" aria-hidden="true">
+        <g class="compass">
+          <circle cx="50" cy="50" r="44" fill="none" stroke="#e0a23f" stroke-width="5"/>
+          <g class="needle"><path d="M50 16 L57 50 L50 84 L43 50 Z" fill="#e0a23f"/></g>
+          <circle cx="50" cy="50" r="6" fill="#0c1731" stroke="#e0a23f" stroke-width="3"/>
+        </g>
+      </svg>
+      <div class="alttitle warn">Not quite sure…</div>
+      <div class="rule"></div>
+      <div class="altsub">Closest match</div>
+      <div class="guess">{{ state.get('best_guess') }}</div>
+      {% if conf_pct %}<div class="badges"><span class="badge warn"><span class="dot"></span>{{ conf_pct }}% confidence</span></div>{% endif %}
+      <div class="rescanhint">Try re-scanning</div>
+    </div>
+  </main>
+
+{% elif view == 'nomatch' %}
+  <main>
+    <div class="alt">
+      <svg class="icon" viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#e05a4f" stroke-width="5"/>
+        <path d="M35 35 L65 65 M65 35 L35 65" stroke="#e05a4f" stroke-width="7" stroke-linecap="round"/>
+      </svg>
+      <div class="alttitle err">No match found</div>
+      <div class="rule"></div>
+      <div class="altsub">Adjust the card and scan again</div>
+      {% if state.get('reason') or state.get('message') %}
+      <div class="altreason">{{ state.get('reason') or state.get('message') }}</div>
+      {% endif %}
+      <div class="rescanhint">Try again</div>
+    </div>
+  </main>
+
+{% else %}
+  <main>
+    <div class="idlewrap">
+      <div class="scanzone">
+        <span class="ring"></span><span class="ring2"></span>
+        <svg viewBox="0 0 100 100" aria-hidden="true">
+          <g class="compass">
+            <circle cx="50" cy="50" r="44" fill="none" stroke="#f2c14e" stroke-width="4"/>
+            <circle cx="50" cy="50" r="36" fill="none" stroke="rgba(242,193,78,.35)" stroke-width="1.5"/>
+            <path d="M50 6 L52 14 L48 14 Z M50 94 L52 86 L48 86 Z M6 50 L14 48 L14 52 Z M94 50 L86 48 L86 52 Z" fill="#f2c14e"/>
+            <g class="needle">
+              <path d="M50 18 L56 50 L50 54 L44 50 Z" fill="#c73e3e"/>
+              <path d="M50 82 L56 50 L50 46 L44 50 Z" fill="#f2c14e"/>
+            </g>
+            <circle cx="50" cy="50" r="5" fill="#0c1731" stroke="#f2c14e" stroke-width="3"/>
+          </g>
+        </svg>
+      </div>
+      <div class="idletitle">Place a card to scan</div>
+      <div class="rule"></div>
+      <div class="idlesub">{{ state.get('message') or 'Set your card face-up on the deck' }}</div>
+    </div>
+  </main>
+{% endif %}
+
+  <div class="sea" aria-hidden="true">
+    <div class="wave w1"><svg viewBox="0 0 1200 60" preserveAspectRatio="none">
+      <path d="M0 32 C100 12 200 52 300 32 C400 12 500 52 600 32 C700 12 800 52 900 32 C1000 12 1100 52 1200 32 L1200 60 L0 60 Z" fill="#0e3a52"/>
+    </svg></div>
+    <div class="wave w2"><svg viewBox="0 0 1200 60" preserveAspectRatio="none">
+      <path d="M0 36 C120 18 240 54 360 36 C480 18 600 54 720 36 C840 18 960 54 1080 36 C1160 24 1200 40 1200 36 L1200 60 L0 60 Z" fill="#134a63"/>
+    </svg></div>
+  </div>
+
+</div>
+
+<script>
+(function () {
+  "use strict";
+  /* "Scan next card" — re-arm scanning on the Pi, then clear to idle */
+  window.scanNext = function () {
+    var b = document.querySelector('.nextbtn');
+    if (b) { b.disabled = true; b.textContent = 'Resuming…'; }
+    fetch('/resume', { method: 'POST', cache: 'no-store' })
+      .then(function () { window.location.reload(); })
+      .catch(function () { window.location.reload(); });
+  };
+  /* shrink price to fit its box (large values / small screens) */
+  var p = document.getElementById('price');
+  if (p) {
+    var box = p.parentElement, f = parseFloat(getComputedStyle(p).fontSize), guard = 24;
+    while (p.scrollWidth > box.clientWidth && f > 32 && guard--) {
+      f *= 0.93; p.style.fontSize = f + 'px';
+    }
+  }
+  /* lightweight poll: reload only when server-rendered signature changes */
+  var sig = document.documentElement.getAttribute('data-sig') || '';
+  function tick() {
+    fetch(window.location.href, { cache: 'no-store' })
+      .then(function (r) { return r.text(); })
+      .then(function (t) {
+        var m = t.match(/data-sig="([^"]*)"/);
+        if (m && m[1] !== sig) window.location.reload();
+      })
+      .catch(function () { /* offline blip — try again next tick */ });
+  }
+  setInterval(tick, 3000);
+})();
+</script>
+</body>
+</html>

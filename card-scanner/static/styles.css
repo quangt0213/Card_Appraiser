@@ -1,0 +1,22 @@
+:root { --bg:#0e1116; --fg:#e8edf3; --accent:#37d67a; --muted:#8a94a3; --warn:#e0b341; }
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+       background:var(--bg); color:var(--fg); }
+
+/* Touchscreen display */
+body.display { display:flex; align-items:center; justify-content:center; height:100vh; }
+.card { text-align:center; padding:2rem; max-width:640px; }
+.card .name { font-size:2.6rem; margin:0 0 .3rem; }
+.card .meta { color:var(--muted); font-size:1.1rem; margin:.2rem 0 1rem; }
+.card .price { font-size:4rem; font-weight:700; color:var(--accent); margin:.4rem 0; }
+.card .price .noprice { color:var(--warn); font-size:2rem; }
+.card .basis { color:var(--muted); font-size:.95rem; margin:.1rem 0; }
+.card .conf { color:var(--muted); font-size:.9rem; letter-spacing:.03em; }
+.card .ts { color:#5b6472; font-size:.8rem; margin-top:1.4rem; }
+.card.unmatched .name { color:var(--warn); }
+
+/* Status page */
+.wrap { max-width:720px; margin:3rem auto; padding:0 1.2rem; }
+.wrap code, .wrap pre { background:#161b22; border-radius:6px; padding:.15rem .4rem; }
+.wrap pre { padding:1rem; overflow:auto; }
+a { color:var(--accent); }

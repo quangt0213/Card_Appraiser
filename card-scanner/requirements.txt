@@ -1,0 +1,11 @@
+Flask>=3.0
+opencv-python-headless>=4.9      # headless: no GUI libs, lighter on the Pi.
+                                 # also provides the DCT used for perceptual hashing.
+numpy>=1.26
+rapidfuzz>=3.6                   # OCR text normalization + fuzzy matching
+requests>=2.31
+python-dotenv>=1.0
+easyocr>=1.7                     # OCR engine (heavy: pulls in torch + Pillow)
+
+# --- dev / test only ---
+pytest>=8.0

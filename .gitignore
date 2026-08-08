@@ -1,0 +1,7 @@
+__pycache__/
+*.pyc
+.venv/
+card-scanner/data/
+card-scanner/logs/*.log
+.env
+*.tgz

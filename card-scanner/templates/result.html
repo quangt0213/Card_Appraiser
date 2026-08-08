@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Card Scanner — Status</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+<body>
+  <main class="wrap">
+    <h1>Card Scanner</h1>
+    <p>Backend is running. POST a JPEG to <code>/scan</code>.</p>
+    <ul>
+      <li><a href="/display">/display</a> — touchscreen view</li>
+      <li><a href="/history">/history</a> — recent scans (JSON)</li>
+      <li><a href="/health">/health</a> — status (JSON)</li>
+    </ul>
+    <h2>Latest</h2>
+    <pre>{{ state | tojson(indent=2) }}</pre>
+  </main>
+</body>
+</html>
