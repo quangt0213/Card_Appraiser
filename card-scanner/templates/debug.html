@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Card Scanner — Debug Monitor</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; }
+  html, body { width:100%; min-height:100%; }
+  body {
+    font-family: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    color:#f4ead2;
+    background:
+      radial-gradient(120% 90% at 50% -20%, rgba(64,110,160,.28), rgba(0,0,0,0) 60%),
+      linear-gradient(180deg, #0c1731 0%, #0d2038 38%, #0b3145 68%, #04101a 100%);
+    min-height:100vh;
+  }
+  .stage { padding:18px clamp(16px,3vw,40px); max-width:1400px; margin:0 auto; }
+
+  .topbar {
+    display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;
+    font-size:clamp(13px,1.6vw,17px); letter-spacing:.2em; text-transform:uppercase;
+    color:#b7a878; font-weight:700; margin-bottom:16px;
+  }
+  .brand { display:flex; align-items:center; gap:.6em; }
+  .brand svg { width:1.6em; height:1.6em; }
+  .stamp { color:#7d8fa5; letter-spacing:.14em; font-variant-numeric:tabular-nums; }
+
+  .grid { display:grid; grid-template-columns: 1.4fr 1fr; gap:20px; align-items:start; }
+  @media (max-width:900px){ .grid { grid-template-columns:1fr; } }
+
+  .panel {
+    border:1px solid rgba(242,193,78,.28); border-radius:12px;
+    background: rgba(4,10,18,.45); padding:16px;
+  }
+  .panel h2 {
+    font-size:13px; letter-spacing:.24em; text-transform:uppercase; color:#b7a878;
+    font-weight:800; margin-bottom:12px;
+  }
+
+  /* image pane */
+  .imgbox {
+    position:relative; width:100%; aspect-ratio:4/3; border-radius:8px; overflow:hidden;
+    background:#000; border:1px solid rgba(143,163,186,.25);
+    display:flex; align-items:center; justify-content:center;
+  }
+  .imgbox img { width:100%; height:100%; object-fit:contain; display:block; }
+  .imgbox .none { color:#54657c; font-size:15px; letter-spacing:.1em; }
+  .imgmeta {
+    margin-top:10px; display:flex; gap:14px; flex-wrap:wrap;
+    font-size:13px; color:#8fa3ba; font-variant-numeric:tabular-nums;
+  }
+  .imgmeta b { color:#c9b98d; font-weight:700; }
+
+  /* result pane */
+  .verdict {
+    display:inline-flex; align-items:center; gap:.5em; padding:.4em 1em; border-radius:999px;
+    font-weight:800; letter-spacing:.1em; text-transform:uppercase; font-size:15px; margin-bottom:14px;
+    border:1px solid rgba(242,193,78,.4);
+  }
+  .verdict .dot { width:.6em; height:.6em; border-radius:50%; background:#9fb0c4; }
+  .verdict.match { color:#5fd08a; border-color:rgba(95,208,138,.5); }
+  .verdict.match .dot { background:#5fd08a; }
+  .verdict.idle  { color:#9fb0c4; }
+
+  .cardname { font-size:clamp(22px,2.6vw,30px); font-weight:800; line-height:1.1; }
+  .cardmeta { margin-top:.25em; color:#c9b98d; letter-spacing:.1em; text-transform:uppercase; font-size:14px; }
+  .price {
+    margin:12px 0; font-size:clamp(40px,6vw,68px); font-weight:800; line-height:1;
+    font-variant-numeric:tabular-nums; color:#f2c14e;
+  }
+  .price.nil { color:#54657c; }
+
+  table.kv { width:100%; border-collapse:collapse; margin-top:8px; }
+  table.kv td { padding:7px 6px; border-top:1px solid rgba(143,163,186,.14); font-size:14px; vertical-align:top; }
+  table.kv td.k { color:#7d8fa5; letter-spacing:.06em; text-transform:uppercase; font-size:12px; width:42%; }
+  table.kv td.v { color:#e8eef5; font-variant-numeric:tabular-nums; word-break:break-word; }
+
+  .hint { margin-top:16px; font-size:12.5px; color:#7d8fa5; line-height:1.5; }
+  .live { display:inline-flex; align-items:center; gap:.5em; color:#5fd08a; font-size:12px; letter-spacing:.14em; text-transform:uppercase; }
+  .live .pulse { width:.6em; height:.6em; border-radius:50%; background:#5fd08a; animation:blink 1.4s ease-in-out infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:.25} }
+</style>
+</head>
+<body>
+<div class="stage">
+
+  <div class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 100 100" aria-hidden="true">
+        <circle cx="50" cy="50" r="44" fill="none" stroke="#f2c14e" stroke-width="6"/>
+        <path d="M50 14 L58 50 L50 86 L42 50 Z" fill="#f2c14e"/>
+        <path d="M14 50 L50 42 L86 50 L50 58 Z" fill="#c73e3e"/>
+        <circle cx="50" cy="50" r="7" fill="#0c1731" stroke="#f2c14e" stroke-width="4"/>
+      </svg>
+      <span>Card Scanner · Debug Monitor</span>
+    </div>
+    <div class="stamp"><span class="live"><span class="pulse"></span>live</span> &nbsp; <span id="clock">—</span></div>
+  </div>
+
+  <div class="grid">
+
+    <div class="panel">
+      <h2>Last image received by the Pi</h2>
+      <div class="imgbox">
+        <img id="frame" alt="latest received frame" style="display:none">
+        <div class="none" id="noimg">waiting for the first image…</div>
+      </div>
+      <div class="imgmeta">
+        <span><b id="mfile">—</b></span>
+        <span id="msize">—</span>
+        <span id="mage">—</span>
+      </div>
+      <div class="hint">
+        This is the exact JPEG the ESP32-CAM POSTed to <code>/scan</code>. Use it to aim
+        and focus: the card should fill most of the frame, be sharp, square-on, and evenly
+        lit with no glare on the name or the collector number.
+      </div>
+    </div>
+
+    <div class="panel">
+      <h2>Recognition result</h2>
+      <div id="verdict" class="verdict idle"><span class="dot"></span><span id="verdicttext">Idle</span></div>
+      <div class="cardname" id="cardname">—</div>
+      <div class="cardmeta" id="cardmeta"></div>
+      <div class="price nil" id="price">—</div>
+      <table class="kv">
+        <tr><td class="k">Confidence</td><td class="v" id="confidence">—</td></tr>
+        <tr><td class="k">Source</td><td class="v" id="source">—</td></tr>
+        <tr><td class="k">Method</td><td class="v" id="method">—</td></tr>
+        <tr><td class="k">Price basis</td><td class="v" id="basis">—</td></tr>
+        <tr><td class="k">Reason (no match)</td><td class="v" id="reason">—</td></tr>
+        <tr><td class="k">OCR text</td><td class="v" id="ocr">—</td></tr>
+        <tr><td class="k">Updated</td><td class="v" id="updated">—</td></tr>
+      </table>
+      <div class="hint">
+        Auto-refreshes ~1×/sec. If the image looks good but this says
+        <em>no candidates</em>, the framing/OCR needs work; if it says a low confidence
+        best guess, tune <code>REMOTE_MATCH_THRESHOLD</code>.
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var img = document.getElementById('frame');
+  var noimg = document.getElementById('noimg');
+
+  function fmtBytes(n){ if(n==null) return '—'; if(n<1024) return n+' B'; return (n/1024).toFixed(0)+' KB'; }
+  function set(id, v){ document.getElementById(id).textContent = (v===undefined||v===null||v==='') ? '—' : v; }
+
+  function tick() {
+    fetch('/debug/state', { cache:'no-store' })
+      .then(function(r){ return r.json(); })
+      .then(function(s){
+        // image
+        if (s.image_file) {
+          img.src = '/debug/latest.jpg?t=' + Date.now();
+          img.style.display = 'block'; noimg.style.display = 'none';
+          set('mfile', s.image_file);
+          set('msize', fmtBytes(s.image_bytes));
+          set('mage', (s.image_age_s!=null? s.image_age_s+' s ago':'—'));
+        } else {
+          img.style.display='none'; noimg.style.display='block';
+          set('mfile','—'); set('msize','—'); set('mage','—');
+        }
+        // verdict
+        var v = document.getElementById('verdict');
+        if (s.matched) {
+          v.className='verdict match'; set('verdicttext','Match');
+        } else {
+          v.className='verdict idle'; set('verdicttext','No match / idle');
+        }
+        set('cardname', s.card_name || '—');
+        var meta = [s.set_name, s.collector_number ? ('#'+s.collector_number) : ''].filter(Boolean).join('  ·  ');
+        set('cardmeta', meta);
+        var p = document.getElementById('price');
+        if (s.matched && s.price != null) { p.textContent = '$' + Number(s.price).toFixed(2); p.className='price'; }
+        else { p.textContent='—'; p.className='price nil'; }
+        set('confidence', s.confidence!=null ? (Math.round((s.confidence||0)*100)+'%') : '—');
+        set('source', s.source);
+        set('method', s.match_method);
+        set('basis', s.price_basis);
+        set('reason', s.reason);
+        set('ocr', s.ocr_text);
+        set('updated', (s.updated_at||'').replace('T',' ').slice(0,19));
+      })
+      .catch(function(){ /* transient — retry next tick */ });
+    document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+  }
+  setInterval(tick, 1200); tick();
+})();
+</script>
+</body>
+</html>
