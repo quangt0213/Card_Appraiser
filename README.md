@@ -108,12 +108,6 @@ your desk.
 http://<pi-ip>:5000/debug
 ```
 
-For your Pi that's:
-
-```
-http://10.0.0.64:5000/debug
-```
-
 ### What you see
 
 - **Left — Last image received by the Pi:** the newest non-empty JPEG the camera POSTed,
